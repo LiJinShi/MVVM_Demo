@@ -1,0 +1,43 @@
+//
+//  MLBaseAFNetDispatch.m
+//  MaLi
+//
+//  Created by lijinshi on 2017/3/22.
+//  Copyright © 2017年 lijinshi. All rights reserved.
+//
+
+#import "MLBaseAFNetDispatch.h"
+
+@interface MLBaseAFNetDispatch()
+
+@end
+
+@implementation MLBaseAFNetDispatch
+
+- (instancetype)init
+{
+    if (self = [super init]) {
+        
+    }
+    return self;
+}
+
+- (NSMutableDictionary *)userInfo
+{
+    if (!_userInfo) {
+        _userInfo = [[NSMutableDictionary alloc] init];
+    }
+    return _userInfo;
+}
+
+- (void)setValue:(id)value forKey:(NSString *)key
+{
+    [self.userInfo setValue:value forKey:key];
+}
+
+- (id)valueForKey:(NSString *)key
+{
+    return [self.userInfo valueForKey:key];
+}
+
+@end

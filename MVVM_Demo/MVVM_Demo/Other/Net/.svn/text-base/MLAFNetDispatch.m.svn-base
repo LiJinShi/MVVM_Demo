@@ -1,0 +1,299 @@
+//
+//  MLAFNetDispatch.m
+//  MaLi
+//
+//  Created by lijinshi on 2017/3/22.
+//  Copyright © 2017年 lijinshi. All rights reserved.
+//
+
+#import "MLAFNetDispatch.h"
+#import "MLHTTPSessionManager.h"
+#import "NSDictionary+JSONString.h"
+#import "MLDispatchurl.h"
+#import "MLLoginViewController.h"
+#import "MLNavgationController.h"
+#import "MLRefreshTokenModel.h"
+
+typedef NS_ENUM(NSInteger, ResultCodeType)
+{
+    ResultCodeTypeSuccess             = 0,      // 成功
+    ResultCodeTypeRefreshTokenInvalid = 997,    // refreshToken失效
+    ResultCodeTypeTokenIllegal        = 992,    // token不合法（长度或格式不对）
+    ResultCodeTypeAccessTokenInvalid  = 993,    // accessToken失效
+};
+
+// 用静态变量保存（判断是否走了refreshToken去请求accessToken路径）
+static BOOL _isFromRefreshToken = NO;
+
+@interface MLAFNetDispatch()
+
+// target(发起网络者，一般是控制器对象)
+@property (nonatomic, weak) NSObject *target;
+// 成功回调
+@property SEL requestSuccess;
+// 失败回调
+@property SEL requestFail;
+@property (nonatomic, strong) MLHTTPSessionManager *manager;
+
+// 保存accessToken失效时的那个请求方法
+@property (nonatomic) SEL preMethod;
+// 保存accessToken失效时的那个请求方法的参数
+@property (nonatomic, strong) NSDictionary *preParameter;
+// 保存accessToken失效时的那个请求url
+@property (nonatomic, strong) NSString *preUrlString;
+
+@end
+
+@implementation MLAFNetDispatch
+
+- (instancetype)init
+{
+    if (self = [super init]) {
+        self.manager = [MLHTTPSessionManager manager];
+    }
+    return self;
+}
+
+- (void)dealloc
+{
+    self.target = nil;
+    self.requestSuccess = nil;
+    self.requestFail = nil;
+}
+
+// 创建请求对象
++ (MLAFNetDispatch *)creatRequestWithTarget:(id)target requestSuccess:(SEL)requestSuccess requestFail:(SEL)requestFail
+{
+    MLAFNetDispatch *dispatch = [[MLAFNetDispatch alloc] init];
+    dispatch.target         = target;
+    dispatch.requestSuccess = requestSuccess;
+    dispatch.requestFail    = requestFail;
+    
+    return dispatch;
+}
+
+- (void)postRequestWithURL:(NSString *)url parameters:(NSDictionary *)dic
+{
+    NSString *urlStr = [NSString stringWithFormat:@"%@/%@", SERVICE_BASE_URL, url];
+    NSLog(@"%@",urlStr);
+    [self.manager POST:urlStr parameters:dic progress:nil success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
+        NSLog(@"%@==JSON: %@  pra==%@",urlStr, [responseObject description], [dic jsonStringWithPrettyPrint]);
+        if (self.target && [self.target respondsToSelector:self.requestSuccess]) {
+            if ( [responseObject[@"code"] integerValue] == ResultCodeTypeRefreshTokenInvalid ||
+                [responseObject[@"code"] integerValue] == ResultCodeTypeTokenIllegal) {
+                self.preMethod = NSSelectorFromString(@"postRequestWithURL:parameters:");
+                self.preUrlString = url;
+                self.preParameter = dic;
+            }
+            [self dealWithTokenWithData:responseObject];
+        }
+        
+    } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
+        NSLog(@"%@==NSErro: %@",url, error);
+        
+        if (self.target && [self.target respondsToSelector:self.requestFail]) {
+            [self requestError:error withoperation:task isNotNet:NO];
+        }
+    }];
+}
+
+- (void)getRequestWithURL:(NSString *)url
+               parameters:(NSDictionary *)dic
+{
+    NSString *urlStr = [NSString stringWithFormat:@"%@/%@", SERVICE_BASE_URL, url];
+    [self.manager GET:urlStr parameters:dic progress:nil success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
+        NSLog(@"%@==JSON: %@  pra==%@", urlStr, [responseObject description], [dic jsonStringWithPrettyPrint]);
+        if (self.target && [self.target respondsToSelector:self.requestSuccess]) {
+            if ( [responseObject[@"code"] integerValue] == ResultCodeTypeRefreshTokenInvalid ||
+                [responseObject[@"code"] integerValue] == ResultCodeTypeTokenIllegal) {
+                self.preMethod = NSSelectorFromString(@"getRequestWithURL:parameters:");
+                self.preUrlString = url;
+                self.preParameter = dic;
+            }
+            [self dealWithTokenWithData:responseObject];
+        }
+    } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
+        if (self.target && [self.target respondsToSelector:self.requestFail]) {
+            [self requestError:error withoperation:task isNotNet:NO];
+        }
+    }];
+}
+
+- (void)putRequestWithURL:(NSString *)url
+               parameters:(NSDictionary *)dic
+{
+    NSString *urlStr = [NSString stringWithFormat:@"%@/%@", SERVICE_BASE_URL, url];
+     NSLog(@"%@",urlStr);
+    [self.manager PUT:urlStr parameters:dic success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
+        NSLog(@"%@==JSON: %@  pra==%@",urlStr, [responseObject description], [dic jsonStringWithPrettyPrint]);
+        
+        if (self.target && [self.target respondsToSelector:self.requestSuccess]) {
+            [self dealWithTokenWithData:responseObject];
+        }
+    } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
+        if (self.target && [self.target respondsToSelector:self.requestFail]) {
+            [self requestError:error withoperation:task isNotNet:NO];
+        }
+    }];
+}
+
+- (void)deleteRequestWithURL:(NSString *)url
+               parameters:(NSDictionary *)dic
+{
+    NSString *urlStr = [NSString stringWithFormat:@"%@/%@", SERVICE_BASE_URL, url];
+    NSLog(@"%@",urlStr);
+    [self.manager DELETE:urlStr parameters:dic success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
+        NSLog(@"%@==JSON: %@  pra==%@",urlStr, [responseObject description], [dic jsonStringWithPrettyPrint]);
+        
+        if (self.target && [self.target respondsToSelector:self.requestSuccess]) {
+            [self dealWithTokenWithData:responseObject];
+        }
+    } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
+        if (self.target && [self.target respondsToSelector:self.requestFail]) {
+            [self requestError:error withoperation:task isNotNet:NO];
+        }
+    }];
+}
+
+#pragma mark 根据code进行token相关处理
+- (void)dealWithTokenWithData:(NSDictionary *)responseObject
+{
+    NSDictionary *dict = responseObject;
+    ResultCodeType code = [dict[@"code"] integerValue];
+    
+    if (code == ResultCodeTypeAccessTokenInvalid ||
+        code == ResultCodeTypeTokenIllegal){ // accessToken失效,用refreshToken去获取
+        NSDictionary *para = @{@"refreshToken": [MLUserDefault getRefreshToken],
+                                     @"userId": [MLUserDefault getUserId]};
+        _isFromRefreshToken = YES;
+        if (self.manager) {
+            [self postRequestWithURL:RefreshToken parameters:para];
+        } else {
+            self.manager = [MLHTTPSessionManager manager];
+            [self postRequestWithURL:RefreshToken parameters:para];
+        }
+        
+    } else if (code == ResultCodeTypeRefreshTokenInvalid) { // refreshToken失效,跳登录页
+        _isFromRefreshToken = NO;
+        if (self.target && [self.target respondsToSelector:self.requestSuccess]) {
+            [self requestSuccessData:responseObject];
+        }
+        [MLUserDefault removeUserId];
+        [MLUserDefault removeAccessToken];
+        [MLShowLoginVCTool showLoginVCIsNeedBack:NO];
+        UIView *view = [UIApplication sharedApplication].keyWindow;
+        NSString *message = responseObject[@"msg"];
+        [[MLCustomHud sharedInstance] showText:message inView:view afterTime:3];
+        
+    } else { // 成功
+        if (_isFromRefreshToken) { // 替换accessToken与refreshToken
+            _isFromRefreshToken = NO;
+            MLRefreshTokenModel *refreshTokenModel = [MLRefreshTokenModel mj_objectWithKeyValues:responseObject[@"data"]];
+            [MLUserDefault saveAccessToken:refreshTokenModel.accessToken];
+            [MLUserDefault saveRefreshToken:refreshTokenModel.refreshToken];
+            [MLUserDefault saveUserId:refreshTokenModel.userId];
+            
+            if (self.preMethod == nil) {
+                return;
+            }
+            IMP imp = [self methodForSelector:self.preMethod];
+            void (*func)(id, SEL, id, id) = (void *)imp;
+            func(self, self.preMethod, self.preUrlString, self.preParameter);
+        } else {
+            if (self.target && [self.target respondsToSelector:self.requestSuccess]) {
+                [self requestSuccessData:responseObject];
+            }
+        }
+    }
+}
+
++ (void)upLoadImageWithURL:(NSString *)url
+                     image:(UIImage *)image
+             progressBlock:(void(^)(NSProgress *))progressBlock
+              successBlock:(void (^)(NSURLSessionDataTask *, NSDictionary *))successBlock
+              failureBlock:(void (^)(NSURLSessionDataTask *, NSError *))failureBlock
+{
+    NSData *imageData = UIImageJPEGRepresentation(image, 0.5);
+    
+    MLHTTPSessionManager *manager = [MLHTTPSessionManager manager];
+    NSString *urlString = [NSString stringWithFormat:@"%@/%@", SERVICE_Upload_URL, url];
+    [manager POST:urlString parameters:nil constructingBodyWithBlock:^(id<AFMultipartFormData>  _Nonnull formData) {
+        NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
+        formatter.dateFormat = @"yyyy-MM-dd HH:mm:ss";
+        NSString *fileName = [NSString stringWithFormat:@"%@.png",[formatter stringFromDate:[NSDate date]]];
+        [formData appendPartWithFileData:imageData name:@"file" fileName:fileName mimeType:@"image/png"];
+        
+    } progress:^(NSProgress * _Nonnull uploadProgress) {
+        if (progressBlock) {
+            progressBlock(uploadProgress); // 进度
+        }
+    } success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
+        if (successBlock) {
+            successBlock(task, responseObject); // 成功
+        }
+        
+    } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
+        NSLog(@"%@", error);
+        if (failureBlock) {
+            failureBlock(task, error); // 失败
+        }
+    }];
+}
+
+#pragma mark 接口成功回调
+- (void)requestSuccessData:(NSDictionary *)responseObject
+{
+    IMP imp = [self.target methodForSelector:self.requestSuccess];
+    void (*func)(id, SEL, id, id) = (void *)imp;
+    func(self.target, self.requestSuccess, responseObject, self.userInfo);
+}
+
+#pragma mark 接口失败回调
+- (void)requestError:(NSInteger)statusCode
+{
+    IMP imp = [self.target methodForSelector:self.requestFail];
+    void (*func)(id, SEL, NSInteger, id) = (void *)imp;
+    func(self.target, self.requestFail, statusCode, self.userInfo);
+}
+
+#pragma mark 接口失败code本地处理
+- (void)requestError:(NSError *)error
+       withoperation:(NSURLSessionDataTask *)task
+            isNotNet:(BOOL)isNotNet
+{
+    NSLog(@"%@",error);
+    if (self.target && [self.target respondsToSelector:self.requestFail]) {
+        [self requestError:error.code];
+    }
+    if (isNotNet) { // 无可用网络
+        [[MLCustomHud sharedInstance] showText:NOTNET];
+    }
+    else {
+        if (error.code == kCFURLErrorTimedOut) {
+            [[MLCustomHud sharedInstance] showText:TIMEOUTERROR];
+            
+        } else if (error.code == kCFURLErrorCannotFindHost) {
+            [[MLCustomHud sharedInstance] showText:SERVICENOTFOUND];
+            
+        } else if (error.code == kCFURLErrorNotConnectedToInternet ||
+                   error.code == kCFURLErrorNetworkConnectionLost ||
+                   error.code == kCFURLErrorCannotConnectToHost) {
+            [[MLCustomHud sharedInstance] showText:NOTNET];
+
+        } else {
+            [[MLCustomHud sharedInstance] showText:REQUESTFAIL];
+        }
+    }
+}
+
+#pragma makr 取消网络请求
+- (void)cancleRequest
+{
+    [self.manager.operationQueue cancelAllOperations];
+    
+    self.target         = nil;
+    self.requestSuccess = nil;
+    self.requestFail    = nil;
+}
+
+@end

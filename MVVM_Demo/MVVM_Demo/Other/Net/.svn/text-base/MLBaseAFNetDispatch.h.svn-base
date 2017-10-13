@@ -1,0 +1,18 @@
+//
+//  MLBaseAFNetDispatch.h
+//  MaLi
+//
+//  Created by lijinshi on 2017/3/22.
+//  Copyright © 2017年 lijinshi. All rights reserved.
+//
+
+#import "MLBaseModel.h"
+
+@interface MLBaseAFNetDispatch : MLBaseModel
+
+@property (nonatomic, strong) NSMutableDictionary *userInfo;
+
+- (void)setValue:(id)value forKey:(NSString *)key;
+- (id)valueForKey:(NSString *)key;
+
+@end

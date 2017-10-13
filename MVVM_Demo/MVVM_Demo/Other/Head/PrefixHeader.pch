@@ -1,0 +1,59 @@
+//
+//  PrefixHeader.pch
+//  MVVM_Demo
+//
+//  Created by lijinshi on 2017/10/12.
+//  Copyright © 2017年 lijinshi. All rights reserved.
+//
+
+#ifndef PrefixHeader_pch
+#define PrefixHeader_pch
+
+#import <UIKit/UIKit.h>
+// 文件包含
+#import "Masonry.h"
+#import "AFNetworking.h"
+#import "MLNetService.h"
+#import "UIView+HudCount.h"
+
+
+// 宏定义
+#define kScreenW [UIScreen mainScreen].bounds.size.width
+#define kScreenH [UIScreen mainScreen].bounds.size.height
+
+#define WS(weakSelf)    __weak __typeof(&*self) weakSelf = self
+
+// 动态获取状态栏的高度
+#define kStatusH  [UIApplication sharedApplication].statusBarFrame.size.height
+// 状态栏 + 导航条高度
+#define kNav_Status_H  (kStatusH + 44)
+// 是否是iPhone X
+#define isIphoneX (kScreenH == 812 ? YES : NO)
+// 底部tabBar高度
+#define kTabBarH (isIphoneX ? 83 : 49)
+// 状态栏多出的高度(相对于普通屏幕)
+#define kRemainStatusH (kStatusH - 20)
+// tabBar多出的高度(相对于普通屏幕)
+#define kRemainTabBarH (kTabBarH - 49)
+
+#define kviewRect CGRectMake(0, kNav_Status_H, kScreenW, kScreenH - kNav_Status_H)
+
+#define kBaseUrl @"http://api.budejie.com/api/api_open.php"
+
+
+#ifdef DEBUG
+#define SLog(format, ...) printf("class: <%p %s:(%d) > method: %s \n%s\n", self, [[[NSString stringWithUTF8String:__FILE__] lastPathComponent] UTF8String], __LINE__, __PRETTY_FUNCTION__, [[NSString stringWithFormat:(format), ##__VA_ARGS__] UTF8String] )
+#else
+#define SLog(format, ...)
+#endif
+
+typedef NS_ENUM(NSInteger, TGTopicType)
+{
+    TGTopicTypeAll = 1,
+    TGTopicTypePicture = 10,
+    TGTopicTypeWord = 29,
+    TGTopicTypeVoice = 31,
+    TGTopicTypeVideo = 41
+};
+
+#endif /* PrefixHeader_pch */

@@ -1,0 +1,13 @@
+//
+//  MLRefreshTokenModel.m
+//  MaLi
+//
+//  Created by lijinshi on 2017/4/7.
+//  Copyright © 2017年 MaliOwner. All rights reserved.
+//
+
+#import "MLRefreshTokenModel.h"
+
+@implementation MLRefreshTokenModel
+
+@end

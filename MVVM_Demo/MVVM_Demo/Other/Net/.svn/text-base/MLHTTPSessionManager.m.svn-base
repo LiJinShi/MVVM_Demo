@@ -1,0 +1,74 @@
+//
+//  MLHTTPSessionManager.m
+//  MaLi
+//
+//  Created by lijinshi on 2017/3/22.
+//  Copyright © 2017年 lijinshi. All rights reserved.
+//
+
+#import "MLHTTPSessionManager.h"
+#import "MLDeviceHelp.h"
+
+@implementation MLHTTPSessionManager
+
++ (instancetype)manager
+{
+    return [[self alloc] initWithBaseURL:nil];
+}
+
+- (instancetype)init
+{
+    return [self initWithBaseURL:nil];
+}
+
+- (instancetype)initWithBaseURL:(NSURL *)url
+{
+    self = [super initWithBaseURL:url];
+    if (self) {
+        [self setupHttpHeader];
+        [self setupResponse];
+        [self httpsSetting];
+    }
+    return self;
+}
+
+// https设置
+- (void)httpsSetting
+{
+    if (kopenHttps) {
+        NSString *cerPath = [[NSBundle mainBundle] pathForResource:@"malicn" ofType:@"cer"];
+        NSData *certData = [NSData dataWithContentsOfFile:cerPath];
+        AFSecurityPolicy *securityPolicy = [AFSecurityPolicy policyWithPinningMode:AFSSLPinningModeNone];
+        [securityPolicy setAllowInvalidCertificates:YES];
+        securityPolicy.validatesDomainName = NO;
+        NSSet *cerSet = [NSSet setWithObject:certData];
+        [securityPolicy setPinnedCertificates:cerSet];
+        self.securityPolicy = securityPolicy;
+    }
+}
+
+// 设置响应信息
+- (void)setupResponse
+{
+    self.responseSerializer.acceptableContentTypes = [NSSet setWithObjects:@"application/json", @"text/json", @"text/javascript", @"text/html",nil];
+}
+
+// 设置一些请求头信息
+- (void)setupHttpHeader
+{
+    self.requestSerializer = [AFHTTPRequestSerializer serializer];
+    self.requestSerializer.timeoutInterval = 20;
+    
+    [self.requestSerializer setValue:[MLUserDefault getUserId] forHTTPHeaderField:@"userId"];
+    
+    [self.requestSerializer setValue:[MLUserDefault getAccessToken] forHTTPHeaderField:@"accessToken"];
+    [self.requestSerializer setValue:[MLDeviceHelp getCurrentAppVersion] forHTTPHeaderField:@"versoin"];
+    [self.requestSerializer setValue:@"1" forHTTPHeaderField:@"from"]; // 货主端
+    
+    [self.requestSerializer setValue:[NSString stringWithFormat:@"%zd", ClientTypeIos] forHTTPHeaderField:@"deviceOs"];
+
+    [self.requestSerializer setValue:[MLDeviceHelp getDeviceUuid] forHTTPHeaderField:@"deviceId"];
+    [self.requestSerializer setValue:[MLDeviceHelp getDeviceType] forHTTPHeaderField:@"deviceType"];
+}
+
+@end

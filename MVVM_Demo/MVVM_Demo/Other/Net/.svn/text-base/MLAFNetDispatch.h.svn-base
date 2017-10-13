@@ -1,0 +1,44 @@
+//
+//  MLAFNetDispatch.h
+//  MaLi
+//
+//  Created by lijinshi on 2017/3/22.
+//  Copyright © 2017年 lijinshi. All rights reserved.
+//
+
+#import "MLBaseAFNetDispatch.h"
+
+@interface MLAFNetDispatch : MLBaseAFNetDispatch
+
+// 创建对象
++ (MLAFNetDispatch *)creatRequestWithTarget:(id)target
+                             requestSuccess:(SEL)requestSuccess
+                                requestFail:(SEL)requestFail;
+
+// post请求方法
+- (void)postRequestWithURL:(NSString *)url
+                parameters:(NSDictionary*)dic;
+
+// get请求方法
+- (void)getRequestWithURL:(NSString *)url
+               parameters:(NSDictionary*)dic;
+
+// put方法
+- (void)putRequestWithURL:(NSString *)url
+               parameters:(NSDictionary *)dic;
+
+// delete方法
+- (void)deleteRequestWithURL:(NSString *)url
+                  parameters:(NSDictionary *)dic;
+
+// 图片上传
++ (void)upLoadImageWithURL:(NSString *)url
+                     image:(UIImage *)image
+             progressBlock:(void(^)(NSProgress * progress))progressBlock
+              successBlock:(void (^)(NSURLSessionDataTask *task, NSDictionary *dict))successBlock
+              failureBlock:(void (^)(NSURLSessionDataTask *task, NSError *error))failureBlock;
+
+//取消请求
+- (void)cancleRequest;
+
+@end
